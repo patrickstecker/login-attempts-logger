@@ -2,11 +2,13 @@
 /*
 Plugin Name: Login Attempts Logger
 Description: Logs all login attempts with all available data in the database securely and displays the latest login attempts on a settings page.
-Version: 1.1
+Version: 1.1.1
 Author: Patrick Stecker
 Author URI: https://patrickstecker.com/
 Plugin URI: https://patrickstecker.de/
 */
+
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 // Function to log login attempts
 function log_login_attempt($username, $status, $ip_address, $user_agent) {
