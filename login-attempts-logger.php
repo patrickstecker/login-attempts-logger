@@ -5,7 +5,9 @@ Description: Logs all login attempts with all available data in the database sec
 Version: 1.1.1
 Author: Patrick Stecker
 Author URI: https://patrickstecker.com/
-Plugin URI: https://patrickstecker.de/
+Plugin URI: https://github.com/patrickstecker/login-attempts-logger/
+License: GPL-3.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-3.0.html
 */
 
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
