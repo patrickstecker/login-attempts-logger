@@ -125,11 +125,7 @@ function my_plugin_deactivation() {
     global $wpdb;
 
     // Delete the custom database table
-    $table_name = $wpdb->prefix . 'my_plugin_login_attempts';
+    $table_name = $wpdb->prefix . 'login_attempts';
     $wpdb->query("DROP TABLE IF EXISTS $table_name");
 
-    // Remove any options that the plugin may have created
-    delete_option('my_plugin_option1');
-    delete_option('my_plugin_option2');
-    // etc.
 }
