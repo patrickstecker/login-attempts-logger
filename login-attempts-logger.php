@@ -18,11 +18,11 @@ function log_login_attempt($username, $status, $ip_address, $user_agent) {
     $table_name = $wpdb->prefix . 'login_attempts';
     $current_time = current_time('mysql');
     $data = array(
-        'username' => $username,
-        'status' => $status,
-        'ip_address' => $ip_address,
-        'user_agent' => $user_agent,
-        'time' => $current_time
+        'username' => wp_slash($username),
+        'status' => wp_slash($status),
+        'ip_address' => wp_slash($ip_address),
+        'user_agent' => wp_slash($user_agent),
+        'time' => wp_slash($current_time)
     );
     $format = array(
         '%s',
@@ -66,9 +66,9 @@ add_action('wp_login', function ($username) {
 // Log failed logins
 add_action('wp_login_failed', function () {
     $status = 'failed';
-    $username = isset($_POST['log']) ? sanitize_user($_POST['log']) : '';
-    $ip_address = $_SERVER['REMOTE_ADDR'];
-    $user_agent = $_SERVER['HTTP_USER_AGENT'];
+    $username = isset($_POST['log']) ? sanitize_user($_POST['log']) : '(no username entered)';
+    $ip_address = sanitize_text_field($_SERVER['REMOTE_ADDR']);
+    $user_agent = sanitize_text_field($_SERVER['HTTP_USER_AGENT']);
     log_login_attempt($username, $status, $ip_address, $user_agent);
 });
 
