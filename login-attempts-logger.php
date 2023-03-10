@@ -2,7 +2,7 @@
 /*
 Plugin Name: Login Attempts Logger
 Description: Logs all login attempts with all available data in the database securely and displays the latest login attempts on a settings page.
-Version: 1.1.1
+Version: 1.1.2
 Author: Patrick Stecker
 Author URI: https://patrickstecker.com/
 Plugin URI: https://github.com/patrickstecker/login-attempts-logger/
