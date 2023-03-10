@@ -2,7 +2,7 @@
 /*
 Plugin Name: Login Attempts Logger
 Description: Logs all login attempts with all available data in the database securely and displays the latest login attempts on a settings page.
-Version: 1.1.2
+Version: 1.2.0
 Author: Patrick Stecker
 Author URI: https://patrickstecker.com/
 Plugin URI: https://github.com/patrickstecker/login-attempts-logger/
@@ -18,11 +18,11 @@ function log_login_attempt($username, $status, $ip_address, $user_agent) {
     $table_name = $wpdb->prefix . 'login_attempts';
     $current_time = current_time('mysql');
     $data = array(
-        'username' => wp_slash($username),
-        'status' => wp_slash($status),
-        'ip_address' => wp_slash($ip_address),
-        'user_agent' => wp_slash($user_agent),
-        'time' => wp_slash($current_time)
+        'username' => sanitize_text_field($username),
+        'status' => sanitize_text_field($status),
+        'ip_address' => sanitize_text_field($ip_address),
+        'user_agent' => sanitize_text_field($user_agent),
+        'time' => sanitize_text_field($current_time)
     );
     $format = array(
         '%s',
@@ -84,14 +84,84 @@ add_action('admin_menu', function () {
     );
 });
 
+add_action('admin_init', 'login_logger_settings');
+
+
+function login_logger_settings() {
+    add_settings_section('lal_auto_deletion_section', 'Automatic Log Deletion', null, 'login-attempts');
+
+    // setting to turn automatic log deletion on / off
+    add_settings_field('lal_delete_after_days_switch', 'Automatic Log Deletion', 'lalDaysSwitchHTML', 'login-attempts', 'lal_auto_deletion_section');
+    register_setting('loginattemptsloggerplugin', 'lal_delete_after_days_switch', array('sanitize_callback' => 'sanitize_text_field', 'default' => ''));
+    
+    // configure after how many days logs should be deleted
+    add_settings_field('lal_delete_after_days_days', 'Automatic Log Deletion Days', 'lalDaysDaysHTML', 'login-attempts', 'lal_auto_deletion_section');
+    register_setting('loginattemptsloggerplugin', 'lal_delete_after_days_days', array('sanitize_callback' => 'sanitize_lal_delete_after_days_days', 'default' => '30'));
+}
+
+function sanitize_lal_delete_after_days_days ($input) {
+    if ((!ctype_digit($input)) OR $input < 1) {
+        add_settings_error('lal_delete_after_days_days', 'lal_delete_after_days_days_error', 'Please enter a number greater than 0.');
+        return get_option('lal_delete_after_days_days', '30');
+    }
+    return $input;
+}
+
+function lalDaysSwitchHTML () { ?>
+    <input type="checkbox" name="lal_delete_after_days_switch" value="1" <?php checked(get_option('lal_delete_after_days_switch'), '1') ?>>
+    <p class="description">Automatically deletes logs after the specified amount of days in the setting below.</p>
+<?php }
+
+function lalDaysDaysHTML () { ?>
+    <input type="number" name="lal_delete_after_days_days" value="<?php echo get_option('lal_delete_after_days_days') ?>" >
+    <p class="description">Specifies after which amount of days logs should be deleted when the Automatic Log Deletion is turned on.</p>
+<?php }
+
+function delete_login_attempts_after_days($days) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'login_attempts';
+
+    // Set the cutoff date for deleting old logs (in days)
+    $cutoff_date = date('Y-m-d H:i:s', strtotime('-' . $days + 1 . ' days'));
+
+    // Delete the old logs
+    $wpdb->query("DELETE FROM $table_name WHERE time < '$cutoff_date'");
+}
+
+function lal_get_auto_log_delete_on_or_off () {
+    if (get_option( 'lal_delete_after_days_switch' )) {
+        return 'on';
+    }
+    if (!get_option( 'lal_delete_after_days_switch' )) {
+        return 'off';
+    }
+    return 'UNDEFINED';
+}
+
 // Function to display latest login attempts on settings page
 function display_login_attempts() {
+    // first delete old entries if option enabled
+    if (get_option('lal_delete_after_days_switch', '0' )) {
+        delete_login_attempts_after_days(get_option('lal_delete_after_days_days', '30' ));
+    }
+
+    // now display settings and logs
     global $wpdb;
     $table_name = $wpdb->prefix . 'login_attempts';
     $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name ORDER BY time DESC LIMIT %d", 10));
     ?>
     <div class="wrap">
         <h1>Latest Login Attempts</h1>
+        <form action="options.php" method="Post">
+            <?php
+                settings_fields('loginattemptsloggerplugin');
+                do_settings_sections('login-attempts');
+                submit_button();
+            ?>
+        </form>
+        
+        <h2>Attempts List</h2>
+        <p class="description">Automatic log deletion after <?php echo esc_html(get_option( 'lal_delete_after_days_days' )) ?> day(s) is turned <strong><?php echo esc_html(lal_get_auto_log_delete_on_or_off()) ?></strong></p>
         <table class="wp-list-table widefat fixed striped">
             <thead>
             <tr>
@@ -128,4 +198,6 @@ function my_plugin_deactivation() {
     $table_name = $wpdb->prefix . 'login_attempts';
     $wpdb->query("DROP TABLE IF EXISTS $table_name");
 
+    delete_option('lal_delete_after_days_days');
+    delete_option('lal_delete_after_days_switch');
 }
