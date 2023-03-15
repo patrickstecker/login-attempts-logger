@@ -2,7 +2,7 @@
 /*
 Plugin Name: Login Attempts Logger
 Description: Logs all login attempts with all available data in the database securely and displays the latest login attempts on a settings page.
-Version: 1.2.0
+Version: 1.3.0
 Author: Patrick Stecker
 Author URI: https://patrickstecker.com/
 Plugin URI: https://github.com/patrickstecker/login-attempts-logger/
@@ -52,15 +52,33 @@ function create_login_attempts_table() {
     dbDelta($sql);
 }
 
+function lal_send_login_notification_email ($username, $ip_address) {
+    $to = get_bloginfo('admin_email');
+    $subject = 'New Login on ' . get_site_url();
+    $message =  '<p><strong>Hey Admin!</strong>' .
+                '<br>A new login was performed on your website.<br>' . 
+                '<br><strong>Status</strong>: SUCCESSFUL' .
+                '<br><strong>Username</strong>: ' . $username .
+                '<br><strong>IP Address</strong>: ' . $ip_address .
+                '<br><strong>Time and Date</strong>: ' . current_time('mysql') . '<br>' .
+                '<br>Kind Regards and take care!</p>' . 
+                '<br><small>Info: This is an automatic E-Mail notification sent by the wordpress plugin "Login Attempts Logger".</small>';
+    $headers = array('Content-Type: text/html; charset=UTF-8');
+    wp_mail($to, $subject, $message, $headers );
+}
+
 // Create login attempts table on plugin activation
 register_activation_hook(__FILE__, 'create_login_attempts_table');
 
 // Log successful logins
 add_action('wp_login', function ($username) {
     $status = 'success';
-    $ip_address = $_SERVER['REMOTE_ADDR'];
-    $user_agent = $_SERVER['HTTP_USER_AGENT'];
+    $ip_address = sanitize_text_field($_SERVER['REMOTE_ADDR']);
+    $user_agent = sanitize_text_field($_SERVER['HTTP_USER_AGENT']);
     log_login_attempt($username, $status, $ip_address, $user_agent);
+    if (get_option( 'lal_email_notification_switch', FALSE )) {
+        lal_send_login_notification_email($username, $ip_address);
+    }
 });
 
 // Log failed logins
@@ -86,8 +104,16 @@ add_action('admin_menu', function () {
 
 add_action('admin_init', 'login_logger_settings');
 
-
 function login_logger_settings() {
+    // SECTION E-MAIL NOTIFICATION
+    add_settings_section('lal_email_notification', 'E-Mail Notification', null, 'login-attempts');
+
+    // setting to activate E-Mail notification if a user succsessfully logs in
+    add_settings_field( 'lal_email_notification_switch', 'E-Mail Notification', 'lalEmailNotificationHTML', 'login-attempts', 'lal_email_notification' );
+    register_setting('loginattemptsloggerplugin', 'lal_email_notification_switch', array('sanitize_callback' => 'sanitize_text_field', 'default' => ''));
+
+
+    // SECTION AUTO DELETION
     add_settings_section('lal_auto_deletion_section', 'Automatic Log Deletion', null, 'login-attempts');
 
     // setting to turn automatic log deletion on / off
@@ -99,6 +125,7 @@ function login_logger_settings() {
     register_setting('loginattemptsloggerplugin', 'lal_delete_after_days_days', array('sanitize_callback' => 'sanitize_lal_delete_after_days_days', 'default' => '30'));
 }
 
+// SANITIZERS
 function sanitize_lal_delete_after_days_days ($input) {
     if ((!ctype_digit($input)) OR $input < 1) {
         add_settings_error('lal_delete_after_days_days', 'lal_delete_after_days_days_error', 'Please enter a number greater than 0.');
@@ -106,6 +133,12 @@ function sanitize_lal_delete_after_days_days ($input) {
     }
     return $input;
 }
+
+// SETTINGS HTML
+function lalEmailNotificationHTML () { ?>
+    <input type="checkbox" name="lal_email_notification_switch" value="1" <?php checked(get_option('lal_email_notification_switch'), '1') ?>>
+    <p class="description">Send an E-Mail notification to the configured aministration E-Mail address when a successful login is performed.</p>
+<?php }
 
 function lalDaysSwitchHTML () { ?>
     <input type="checkbox" name="lal_delete_after_days_switch" value="1" <?php checked(get_option('lal_delete_after_days_switch'), '1') ?>>
@@ -200,4 +233,5 @@ function my_plugin_deactivation() {
 
     delete_option('lal_delete_after_days_days');
     delete_option('lal_delete_after_days_switch');
+    delete_option('lal_email_notification_switch');
 }
