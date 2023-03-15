@@ -148,7 +148,7 @@ function display_login_attempts() {
     // now display settings and logs
     global $wpdb;
     $table_name = $wpdb->prefix . 'login_attempts';
-    $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name ORDER BY time DESC LIMIT %d", 10));
+    $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table_name ORDER BY time DESC"));
     ?>
     <div class="wrap">
         <h1>Latest Login Attempts</h1>
